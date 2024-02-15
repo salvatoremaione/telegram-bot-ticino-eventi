@@ -1,0 +1,390 @@
+// Ticino Eventi
+// Telegram variables
+var token        = "Telegram Token";
+var telegram_url = "https://api.telegram.org/bot" + token;
+// Google variables
+// https://calendar.google.com/calendar/ical/CALENDAR_ID@group.calendar.google.com/public/basic.ics -- ENGLISH VERSION
+var webapp_url   = "https://script.google.com/macros/s/GOOGLE_APP_SCRIPT_TOKEN/exec";
+var calendar_id  = "CALENDAR_ID@group.calendar.google.com";
+var months_e     = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+var months_i     = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
+var year_co      = [];
+var mont_co      = [];
+var day_co       = [];
+var even_co      = [];
+var link_co_en   = [];
+var link_co_it   = [];
+
+// Support functions
+function getMe() {
+  var response = UrlFetchApp.fetch(telegram_url + "/getMe");
+  Logger.log(response.getContentText());
+}
+function getUpdates() {
+  var response = UrlFetchApp.fetch(telegram_url + "/getUpdates");
+  Logger.log(response.getContentText());
+}
+function setWebhook() {
+  var response = UrlFetchApp.fetch(telegram_url + "/setWebhook?url=" + webapp_url);
+  Logger.log(response.getContentText());
+}
+function doGet(e) {
+  return HtmlService.createHtmlOutput("Hey there! Send POST request instead!");
+}
+
+function updateEvents() {
+  var today = new Date();
+  today.setHours(0,0,0,0);  
+  var events = CalendarApp.getCalendarById(calendar_id).getEvents(today, new Date("December 31, 2030 23:59:59 CST"), {search: ''});
+  var tmp1 = [];
+  for (var i=0;i<events.length;i++) {
+    var tmp_en = events[i].getDescription().toString();
+    if (tmp_en.indexOf("http") == -1) tmp_en = "https://www.ticino.ch/en/";
+    tmp_en = tmp_en.substring(tmp_en.indexOf("http"),tmp_en.length);
+    if (tmp_en.indexOf(">") > -1)    tmp_en = tmp_en.substring(tmp_en.indexOf(">")+1,tmp_en.length-4);
+    var tmp_it = tmp_en;
+    if (tmp_it.indexOf("/en/") > -1) tmp_it = tmp_it.replace("/en/","/it/");
+    tmp1.push([events[i].getStartTime(),events[i].getEndTime(),events[i].getTitle(),tmp_en,tmp_it]);
+  }
+  var data = tmp1.reduce(function(p,c) {
+    var even_sta_dat = c[0];
+    var even_end_dat = c[1];
+    var even_name    = c[2];
+    var even_link_en = c[3];
+    var even_link_it = c[4];
+    while (even_sta_dat.getTime()<=even_end_dat.getTime()) {
+      p.push ([new Date(even_sta_dat), even_name, even_link_en, even_link_it]);
+      even_sta_dat.setDate(even_sta_dat.getDate()+1);
+    }
+    return p;
+  }, []);  
+  for (var n = 0; n < data.length; n++) {
+    if(data[n][0] >= today) {
+      year_co.push([data[n][0].getFullYear()]);
+      mont_co.push([data[n][0].getMonth()+1]);
+      day_co.push([data[n][0].getDate()]);
+      even_co.push([data[n][1]]);
+      link_co_en.push([data[n][2]]);
+      link_co_it.push([data[n][3]]);
+    }
+  }
+}
+
+// *********************************** Support commands
+
+// start - Start bot
+// credits - Info about bot creator
+// today - Info about today's events
+// tomorrow - Info about tomorrow's events
+
+// User: Click on /credits
+// Bot: Reply with a message providing information about creator
+function credits(user_na,user_id) {
+  var input = [];
+  input.push(["<< Back / Indietro","/start"]);
+  var keyBoard = ({inline_keyboard: input.map((x) => ([{text: String(x[0]),callback_data: String(x[1]),}])),});
+  var answer_en = "Dear " + user_na + ", you can contact the creator of this bot clicking here: @SalM_CH";
+  var answer_it = "<i>Caro/a</i> " + user_na + " <i>puoi contattare il creatore di questo bot cliccando qui:</i> @SalM_CH"
+  var answer = answer_en + "\n \n" + answer_it;
+  sendText(user_id,answer,keyBoard);
+}
+
+// User: Click on /today
+// Bot: Reply with a message providing information about today events
+function today(user_id) {
+  var today  = new Date();
+  var toda_y = today.getFullYear();
+  var toda_m = today.getMonth()+1;
+  var toda_d = today.getDate();
+  if (toda_m < 10) toda_m = "0" + toda_m;
+  if (toda_d < 10) toda_d = "0" + toda_d;
+  var todayr = "/EN" + "_" + toda_y + "_" + toda_m + "_" + toda_d;
+  event(user_id,todayr);
+}
+
+// User: Click on /tomorrow
+// Bot: Reply with a message providing information about tomorrow events
+function tomorrow(user_id) {
+  var toda_d = new Date().getDate();
+  var tomor  = new Date();
+  tomor.setDate(toda_d+1);
+  var tomo_y = tomor.getFullYear();
+  var tomo_m = tomor.getMonth()+1;
+  var tomo_d = tomor.getDate();
+  if (tomo_m < 10) tomo_m = "0" + tomo_m;
+  if (tomo_d < 10) tomo_d = "0" + toda_d;
+  var tomorr = "/EN" + "_" + tomo_y + "_" + tomo_m + "_" + tomo_d;
+  event(user_id,tomorr);
+}
+
+// *********************************** Workflow 
+// User: Click on /start
+// Bot: Reply with a message asking to click on the button below to choose the preferred language
+function start(user_na,user_id) {
+  var input = [];
+  input.push(["Language / Lingua","/lang"]);
+  var keyBoard = ({inline_keyboard: input.map((x) => ([{text: String(x[0]),callback_data: String(x[1]),}])),});
+  var answer_en = "Welcome " + user_na + " to the <b>Ticino Eventi bot</b>.\nPlease click on the button below to choose your language.";
+  var answer_it = "<i>Benvenuto/a</i> " + user_na + " <i>all'interno del <b>Ticino Eventi bot</b>.\nSi prega di cliccare sul bottone sottostante per selezionare la lingua.</i>"
+  var answer = answer_en + "\n \n" + answer_it;
+  sendText(user_id,answer,keyBoard);
+}
+
+// User: Click on /lang
+// Bot: Reply with a message asking to click on preferred language
+function lang(user_id) {
+  var input = [];
+  input.push(["English" ,"/EN"]);
+  input.push(["Italiano","/IT"]);
+  var keyBoard  = ({inline_keyboard: input.map((x) => ([{text: String(x[0]),callback_data: String(x[1]),}])),});
+  var answer = "Please indicate your preferred language.\n<i>Si prega di selezionare la lingua desiderata.</i>";
+  sendText(user_id,answer,keyBoard);
+}
+
+// User: Click on a category (e.g., /EN)
+// Bot: Reply with a message asking to choose between events of the present day or select a specific date (based on the chosen language).
+function cho_date(user_id,input){
+  var lang   = input.substring(1,3);
+  var menu   = [];
+  // today
+  var today  = new Date();
+  var toda_y = today.getFullYear();
+  var toda_m = today.getMonth()+1;
+  var toda_d = today.getDate();
+  if (toda_m < 10) toda_m = "0" + toda_m;
+  if (toda_d < 10) toda_d = "0" + toda_d;
+  var todayr = input + "_" + toda_y + "_" + toda_m + "_" + toda_d;
+  if (lang == "EN") menu.push(["Today", input + "_" + toda_y + "_" + toda_m + "_" + toda_d]);
+  if (lang == "IT") menu.push(["Oggi" , input + "_" + toda_y + "_" + toda_m + "_" + toda_d]);
+  // tomorrow
+  var tomor  = new Date();
+  tomor.setDate(today.getDate()+1);
+  var tomo_y = tomor.getFullYear();
+  var tomo_m = tomor.getMonth()+1;
+  var tomo_d = tomor.getDate();
+  if (tomo_m < 10) tomo_m = "0" + tomo_m;
+  if (tomo_d < 10) tomo_d = "0" + tomo_d;
+  var tomorr = input + "_" + tomo_y + "_" + tomo_m + "_" + tomo_d;
+  if (lang == "EN") menu.push(["Tomorrow", input + "_" + tomo_y + "_" + tomo_m + "_" + tomo_d]);
+  if (lang == "IT") menu.push(["Domani"  , input + "_" + tomo_y + "_" + tomo_m + "_" + tomo_d]);
+  // check weekend
+  var tmp = today.getDay();
+  if (today.getDay() == 0) var tmp = 7;
+  // saturday
+  if (tmp < 5) {
+    var saturd = new Date();
+    saturd.setDate(today.getDate()+6-today.getDay());
+    var satu_y = saturd.getFullYear();
+    var satu_m = saturd.getMonth()+1;
+    var satu_d = saturd.getDate();
+    if (satu_m < 10) satu_m = "0" + satu_m;
+    if (satu_d < 10) satu_d = "0" + satu_d;
+    var saturr = input + "_" + satu_y + "_" + satu_m + "_" + satu_d;
+    if (lang == "EN") menu.push(["Saturday", input + "_" + satu_y + "_" + satu_m + "_" + satu_d]);
+    if (lang == "IT") menu.push(["Sabato"  , input + "_" + satu_y + "_" + satu_m + "_" + satu_d]);
+  }
+  // sunday
+  if (tmp < 6) {
+    var sunday = new Date();
+    sunday.setDate(today.getDate()+7-today.getDay());
+    var sund_y = sunday.getFullYear();
+    var sund_m = sunday.getMonth()+1;
+    var sund_d = sunday.getDate();
+    if (sund_m < 10) sund_m = "0" + sund_m;
+    if (sund_d < 10) sund_d = "0" + sund_d;
+    var sundar = input + "_" + sund_y + "_" + sund_m + "_" + sund_d;
+    if (lang == "EN") menu.push(["Sunday"  , input + "_" + sund_y + "_" + sund_m + "_" + sund_d]);
+    if (lang == "IT") menu.push(["Domenica", input + "_" + sund_y + "_" + sund_m + "_" + sund_d]);
+  }
+  if (lang == "EN") {
+    menu.push(["Another date", input + "_" + "OTH"]);
+    menu.push(["<< Back"     , "/lang"]);
+    var answer = "Please indicate the date of your interest.";
+  } 
+  if (lang == "IT") {
+    menu.push(["Altra data"  , input + "_" + "OTH"]);
+    menu.push(["<< Indietro" , "/lang"]);
+    var answer = "Si prega di selezionare la data di interesse.";
+  }
+  var keyBoard = ({inline_keyboard: menu.map((x) => ([{text: String(x[0]),callback_data: String(x[1]),}])),});
+  sendText(user_id,answer,keyBoard);
+}
+
+// User: Click on "Other date" / "Select month" (e.g., /EN_OTH)
+// Bot: Reply with a message asking to click on a year (based on the chosen language).
+function year(user_id,input) {
+  var lang  = input.substring(1,3);
+  var unique = [];
+  for (var n = 0; n < year_co.length; n++) {
+    if (unique.join().indexOf(year_co[n].join()) == -1) {
+      unique.push([String(year_co[n][0]), "/" + lang  + "_" + String(year_co[n][0])]);
+    }
+  }
+  if (lang == "EN") {
+    unique.push(["<< Back"    ,"/" + lang]);
+    var answer = "Please select the year of your interest.";
+  }
+  if (lang == "IT") {
+    unique.push(["<< Indietro","/" + lang]);
+    var answer = "Si prega di selezionare l'anno di interesse.";
+  }
+  var keyBoard = ({inline_keyboard: unique.map((x) => ([{text: String(x[0]),callback_data: String(x[1]),}])),});
+  sendText(user_id,answer,keyBoard);
+}
+
+// User: Click on a year (e.g., /EN_2020)
+// Bot: Reply with a message asking to click on a month based on the chosen language_year combination.
+function month(user_id,input) {
+  var lang  = input.substring(1,3);
+  var year  = Number(input.substring(4,8));
+  var unique = [];
+  for (var n = 0; n < year_co.length; n++) {
+    if (year_co[n] == year && unique.join().indexOf(mont_co[n].join()) == -1) {
+      if (mont_co[n][0] < 10) mont_co[n][0] = "0" + mont_co[n][0];
+      unique.push([String(mont_co[n][0]), input + "_" + String(mont_co[n][0])]);
+    }
+  }
+  if      (lang == "EN") var months_r = months_e;
+  else if (lang == "IT") var months_r = months_i;
+  for (var i = 0; i < unique.length; i++) {
+    for (var j = 0; j < months_r.length; j++) {
+      if (unique[i][0] == j+1) unique[i][0] = months_r[j];
+    }
+  }
+  if (lang == "EN") {
+    unique.push(["<< Back"    ,"/" + lang + "_" + "OTH"]);
+    var answer = "Please select the month of your interest.";
+  }
+  if (lang == "IT") {
+    unique.push(["<< Indietro","/" + lang + "_" + "OTH"]);
+    var answer = "Si prega di selezionare il mese di interesse.";
+  }
+  var keyBoard = ({inline_keyboard: unique.map((x) => ([{text: String(x[0]),callback_data: String(x[1]),}])),});
+  sendText(user_id,answer,keyBoard);
+}
+
+// User: Click on a month (e.g., /EN_2020_03)
+// Bot: Reply with a message asking to click on a day based on the chosen language_year_month combination.
+function day(user_id,input) {
+  var lang  = input.substring(1,3);
+  var year  = Number(input.substring(4,8));
+  var month = Number(input.substring(9,11));
+  var unique = [];
+  for (var n = 0; n < year_co.length; n++) {
+    if (year_co[n] == year && mont_co[n] == month && unique.join().indexOf(day_co[n].join()) == -1) {
+      if (day_co[n][0] < 10) day_co[n][0] = "0" + day_co[n][0];
+      unique.push([String(day_co[n][0]), input + "_" + String(day_co[n][0])]);
+    }
+  }
+  if (lang == "EN") {
+    unique.push(["<< Back"    ,"/" + lang + "_" + year]);
+    var answer = "Please select the day of your interest.";
+  }
+  if (lang == "IT") {
+    unique.push(["<< Indietro","/" + lang + "_" + year]);
+    var answer = "Si prega di selezionare il giorno di interesse."; 
+  }
+  var keyBoard = ({inline_keyboard: unique.map((x) => ([{text: String(x[0]),callback_data: String(x[1]),}])),});
+  sendText(user_id,answer,keyBoard);
+}
+
+// User: Click on a day (e.g., /EN_2020_01_01)
+// Bot: Reply with a message asking to click on an event based on the chosen language_year_month combination.
+function event(user_id,input) {
+  var lang  = input.substring(1,3);
+  var year  = Number(input.substring(4,8));
+  var month = Number(input.substring(9,11));
+  var day   = Number(input.substring(12,14));
+  var unique = [];
+  for (var n = 0; n < year_co.length; n++) {
+    if (year_co[n] == year && mont_co[n] == month && day_co[n] == day && unique.join().indexOf(even_co[n].join()) == -1) {
+      if (lang == "EN") unique.push([String(even_co[n][0]),String(link_co_en[n])]);
+      if (lang == "IT") unique.push([String(even_co[n][0]),String(link_co_it[n])]);
+    }
+  }
+  if (unique.length == 0) {
+    if (month < 10) month = "0" + month;
+    if (lang == "EN") {
+      var answer = "<b>There are no events for the selected date.</b>\nPlease consider one of the following options:";
+      unique.push(["Change day"     , "/" + lang + "_" + year + "_" + month]);
+      unique.push(["Change month"   , "/" + lang + "_" + year]);
+      unique.push(["Change year"    , "/" + lang + "_" + "NOE"]);
+    }
+    if (lang == "IT") {
+      var answer = "<b>Non ci sono eventi per la data selezionata.</b>\nSi prega di considerare una delle seguenti opzioni:";
+      unique.push(["Cambiare giorno", "/" + lang + "_" + year + "_" + month]);
+      unique.push(["Cambiare mese"  , "/" + lang + "_" + year]);
+      unique.push(["Cambiare anno"  , "/" + lang + "_" + "NOE"]);
+    }  
+    var keyBoard = ({inline_keyboard: unique.map((x) => ([{text: String(x[0]),callback_data: String(x[1]),}])),});
+  }
+  else {
+    if (lang == "EN") {
+      var answer = "Please select the event of your interest clicking on the relative link.";
+    }
+    if (lang == "IT") {
+      var answer = "Si prega di selezionare l'evento di proprio interesse cliccando sul relativo link.";
+    }
+    var keyBoard = ({inline_keyboard: unique.map((x) => ([{text: String(x[0]),url: String(x[1]),}])),});
+  }
+  sendText(user_id,answer,keyBoard);
+}
+
+// ***************************** //
+
+function sendText(chatId,text,keyBoard) {
+  keyBoard = keyBoard || 0;
+  if(keyBoard.inline_keyboard || keyBoard.keyboard) {
+    var data = {
+      method: "post",
+      payload: {
+        method: "sendMessage",
+        chat_id: String(chatId),
+        text: text,
+        parse_mode: "HTML",
+        reply_markup: JSON.stringify(keyBoard)
+      }
+    }
+  }
+  else {
+    var data = {
+      method: "post",
+      payload: {
+        method: "sendMessage",
+        chat_id: String(chatId),
+        text: text,
+        parse_mode: "HTML"
+      }
+    }
+  }
+  UrlFetchApp.fetch(telegram_url + '/', data);
+}
+
+function doPost(e) {
+  // Telegram data
+  var contents = JSON.parse(e.postData.contents);
+  if (contents.callback_query) {
+    var conte_na = contents.callback_query.from.first_name;
+    var conte_id = contents.callback_query.from.id;
+    var conte_te = contents.callback_query.data;
+  }
+  else if (contents.message) {
+  var conte_na = contents.message.from.first_name;
+  var conte_id = contents.message.from.id;
+  var conte_te = contents.message.text;
+  }
+  // update events
+  updateEvents();
+  // cases
+       if (conte_te.indexOf("/start") > -1)                                                         start(conte_na,conte_id);
+  else if (conte_te.indexOf("/credits") > -1)                                                       credits(conte_na,conte_id);
+  else if (conte_te.indexOf("/today") > -1)                                                         today(conte_id);
+  else if (conte_te.indexOf("/tomorrow") > -1)                                                      tomorrow(conte_id);
+  else if (conte_te.indexOf("/lang")  > -1)                                                         lang(conte_id);
+  else if (conte_te.length ==  3 && (conte_te.indexOf("/EN") > -1 || conte_te.indexOf("/IT") > -1)) cho_date(conte_id,conte_te);
+  else if (conte_te.length ==  7 && (conte_te.indexOf("/EN") > -1 || conte_te.indexOf("/IT") > -1)) year(conte_id,conte_te);
+  else if (conte_te.length ==  8 && (conte_te.indexOf("/EN") > -1 || conte_te.indexOf("/IT") > -1)) month(conte_id,conte_te);
+  else if (conte_te.length == 11 && (conte_te.indexOf("/EN") > -1 || conte_te.indexOf("/IT") > -1)) day(conte_id,conte_te);
+  else if (conte_te.length == 14 && (conte_te.indexOf("/EN") > -1 || conte_te.indexOf("/IT") > -1)) event(conte_id,conte_te);
+  else sendText(conte_id,"Parameter not valid, please click on /start to verify new events.");
+}
