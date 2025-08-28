@@ -4,6 +4,13 @@ A multilingual Telegram bot (English & Italian) for browsing upcoming events fro
 
 ---
 
+## 🛡️ Badges
+
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15281955.svg)](https://doi.org/10.5281/zenodo.15281955)
+
+---
+
 ## ✨ Features
 
 - **Google Calendar integration** — Events pulled directly from your chosen calendar
@@ -97,7 +104,3 @@ You can use [clasp](https://github.com/google/clasp) to push/pull code between G
 ## 📜 License
 
 MIT — feel free to fork, improve, and adapt.
-
----
-
-<a href="https://doi.org/10.5281/zenodo.15281954"><img src="https://zenodo.org/badge/757993149.svg" alt="DOI"></a>
