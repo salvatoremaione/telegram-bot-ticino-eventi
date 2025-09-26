@@ -8,6 +8,8 @@ A multilingual Telegram bot (English & Italian) for browsing upcoming events fro
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15281955.svg)](https://doi.org/10.5281/zenodo.15281955)
+[![GitHub Verified](https://img.shields.io/badge/Verified-GitHub-blue?logo=github)](https://github.com/salvatoremaione)
+[![Trusted Maintainer](https://img.shields.io/badge/Trusted%20Maintainer-Keybase-8A2BE2?logo=keybase&logoColor=white)](https://keybase.io/salvatore)  
 
 ---
 
